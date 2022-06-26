@@ -1,0 +1,12 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: notes-api
+  namespace: mobsession2
+spec:
+  selector:
+    app: notes-api
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000

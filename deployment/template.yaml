@@ -1,0 +1,124 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: notes-template
+  namespace: <YOUR NAMESPACE HERE>
+objects:
+  - kind: Deployment
+    apiVersion: apps/v1
+    metadata:
+      name: notes-api-deployment
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: notes-api
+      template:
+        metadata:
+          labels:
+            app: notes-api
+        spec:
+          containers:
+            - name: app
+              image: quay.io/rh_ee_ssheri/notes-api:latest
+              imagePullPolicy: Always
+              ports:
+                - containerPort: 5000
+                  name: public
+  - kind: Service
+    apiVersion: v1
+    metadata:
+      name: notes-api-service
+    spec:
+      selector:
+        app: notes-api
+      ports:
+        - protocol: TCP
+          port: 5000
+          targetPort: 5000
+  - kind: Secret
+    apiVersion: v1
+    metadata:
+      name: psql-secrets
+    type: Opaque
+    data:
+      POSTGRESQL_ADMIN_PASSWORD: cG9zdGdyZXM=
+      POSTGRESQL_PASSWORD: cG9zdGdyZXM=
+      POSTGRESQL_DATABASE: bm90ZXNkYg==
+      POSTGRESQL_USER: U29rb2wK
+  - kind: PersistentVolumeClaim
+    apiVersion: v1
+    metadata:
+      name: psql-pvc
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+      storageClassName: brightly-general-purpose
+      volumeMode: Filesystem
+  - kind: Deployment
+    apiVersion: apps/v1
+    metadata:
+      name: psql-deployment
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: psql
+      template:
+        metadata:
+          labels:
+            app: psql
+        spec:
+          containers:
+            - name: psql
+              image: registry.redhat.io/rhel8/postgresql-12:1-109.1655143367
+              imagePullPolicy: Always
+              ports:
+                - containerPort: 5432
+                  name: public
+              env:
+                - name: POSTGRESQL_ADMIN_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: psql-secrets
+                      key: POSTGRESQL_ADMIN_PASSWORD
+                      optional: false
+                - name: POSTGRESQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: psql-secrets
+                      key: POSTGRESQL_PASSWORD
+                      optional: false
+                - name: POSTGRESQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: psql-secrets
+                      key: POSTGRESQL_DATABASE
+                      optional: false
+                - name: POSTGRESQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: psql-secrets
+                      key: POSTGRESQL_USER
+                      optional: false
+              volumeMounts: 
+                - mountPath: /var/lib/pgsql/data
+                  name: psql-data
+          volumes: 
+            - name: psql-data
+              persistentVolumeClaim:
+                claimName: psql-pvc
+  - kind: Service
+    apiVersion: v1
+    metadata:
+      name: postgresql    # must match the name of the PostgreSQL server in the connection string defined in the appsettings.json
+    spec:
+      selector:
+        app: psql
+      ports:
+        - protocol: TCP
+          port: 5432
+          targetPort: 5432

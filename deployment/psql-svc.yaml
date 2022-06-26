@@ -1,0 +1,12 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: postgresql
+  namespace: mobsession2
+spec:
+  selector:
+    app: psql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
